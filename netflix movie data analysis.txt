@@ -1,0 +1,116 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load data
+df = pd.read_csv('mymoviedb.csv', lineterminator='\n')
+
+# Display basic info
+print(df.head())
+print(df.info())
+print(df.describe())
+
+# ---------------- DATA CLEANING ---------------- #
+
+# Remove missing values
+df = df.dropna()
+
+# Check duplicates
+print("Duplicate rows:", df.duplicated().sum())
+
+# Convert release_date to datetime
+df['release_date'] = pd.to_datetime(df['release_date'])
+
+# Create release_year column
+df['release_year'] = df['release_date'].dt.year
+
+print(df['release_year'].head())
+
+# Drop unnecessary columns
+cols = ['overview', 'original_language', 'poster_url']
+
+# Drop only if columns exist
+df.drop(columns=[col for col in cols if col in df.columns], inplace=True)
+
+# ---------------- CATEGORIZE VOTE AVERAGE ---------------- #
+
+def categorize_col(df, col, labels):
+    edges = [
+        df[col].min(),
+        df[col].quantile(0.25),
+        df[col].quantile(0.50),
+        df[col].quantile(0.75),
+        df[col].max()
+    ]
+
+    return pd.cut(
+        df[col],
+        bins=edges,
+        labels=labels,
+        include_lowest=True
+    )
+
+labels = ['low', 'medium', 'high', 'very high']
+
+df['vote_category'] = categorize_col(df, 'vote_average', labels)
+
+print(df['vote_category'].value_counts())
+
+# Remove remaining missing values
+df.dropna(inplace=True)
+
+# Check null values
+print(df.isna().sum())
+
+# Genre analysis
+print(df['genre'].str.split(',').explode().value_counts().head(10))
+
+# Convert genre column to category
+df['genre'] = df['genre'].astype('category')
+
+print(df['genre'].dtype)
+
+# ---------------- VISUALIZATION ---------------- #
+
+sns.set_style('whitegrid')
+
+# Genre distribution
+plt.figure(figsize=(14, 6))
+sns.countplot(
+    y='genre',
+    data=df,
+    order=df['genre'].value_counts().index,
+    palette='Blues_r'
+)
+
+plt.title('Distribution of Genres')
+plt.xlabel('Count')
+plt.ylabel('Genre')
+plt.show()
+
+# Vote average distribution
+plt.figure(figsize=(10, 5))
+sns.histplot(df['vote_average'], bins=20, kde=True, color='orange')
+
+plt.title('Distribution of Vote Averages')
+plt.xlabel('Vote Average')
+plt.ylabel('Frequency')
+plt.show()
+
+# Most popular movie
+print("\nMost Popular Movie:")
+print(df[df['popularity'] == df['popularity'].max()])
+
+# Least popular movie
+print("\nLeast Popular Movie:")
+print(df[df['popularity'] == df['popularity'].min()])
+
+# Release year distribution
+plt.figure(figsize=(10, 5))
+df['release_year'].hist(bins=30)
+
+plt.title('Distribution of Release Years')
+plt.xlabel('Year')
+plt.ylabel('Number of Movies')
+plt.show()
